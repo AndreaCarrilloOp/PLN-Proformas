@@ -3,6 +3,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.api.security import get_current_user, get_owned_request, ensure_provider_request, ensure_email
+from app.models.domain import LocalUser
 from app.models.domain import EmailSend, ProviderRequest
 from app.schemas.emails import EmailUpdate
 from app.services.email_service import EmailService
@@ -25,7 +27,8 @@ def _serialize(email: EmailSend, provider_name: str | None = None) -> dict:
 
 
 @router.post("/solicitudes-proveedor/{provider_request_id}/correo/borrador")
-def draft_email(provider_request_id: int, db: Session = Depends(get_db)):
+def draft_email(provider_request_id: int, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
+    ensure_provider_request(db, provider_request_id, user)
     try:
         email = EmailService(db).draft(provider_request_id)
         provider_request = db.get(ProviderRequest, provider_request_id)
@@ -35,7 +38,8 @@ def draft_email(provider_request_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/solicitudes/{request_id}/correos")
-def list_request_emails(request_id: int, db: Session = Depends(get_db)):
+def list_request_emails(request_id: int, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
+    get_owned_request(db, request_id, user)
     rows = db.execute(
         select(EmailSend, ProviderRequest)
         .join(ProviderRequest, ProviderRequest.id == EmailSend.provider_request_id)
@@ -46,7 +50,8 @@ def list_request_emails(request_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/correos/{email_id}")
-def update_email(email_id: int, payload: EmailUpdate, db: Session = Depends(get_db)):
+def update_email(email_id: int, payload: EmailUpdate, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
+    ensure_email(db, email_id, user)
     try:
         email = EmailService(db).update(
             email_id,
@@ -61,7 +66,8 @@ def update_email(email_id: int, payload: EmailUpdate, db: Session = Depends(get_
 
 
 @router.post("/correos/{email_id}/autorizar")
-def authorize_email(email_id: int, db: Session = Depends(get_db)):
+def authorize_email(email_id: int, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
+    ensure_email(db, email_id, user)
     try:
         email = EmailService(db).decide(email_id, authorized=True)
         provider_request = db.get(ProviderRequest, email.provider_request_id)
@@ -71,7 +77,8 @@ def authorize_email(email_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/correos/{email_id}/rechazar")
-def reject_email(email_id: int, db: Session = Depends(get_db)):
+def reject_email(email_id: int, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
+    ensure_email(db, email_id, user)
     try:
         email = EmailService(db).decide(email_id, authorized=False)
         provider_request = db.get(ProviderRequest, email.provider_request_id)
@@ -81,7 +88,8 @@ def reject_email(email_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/correos/{email_id}/enviar")
-def send_email(email_id: int, db: Session = Depends(get_db)):
+def send_email(email_id: int, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
+    ensure_email(db, email_id, user)
     try:
         email = EmailService(db).send(email_id)
         provider_request = db.get(ProviderRequest, email.provider_request_id)
