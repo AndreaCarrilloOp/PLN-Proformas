@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     max_pdf_mb: int = Field(default=5, ge=1, le=20)
     cors_origins: str = ""
 
+    smtp_fernet_key: str | None = None  # clave Fernet distinta del secreto de sesión
     smtp_host: str | None = None
     smtp_port: int = 587
     smtp_user: str | None = None
