@@ -1,7 +1,7 @@
 """Administración por usuario de SMTP cifrado (nunca devuelve la contraseña)."""
 from cryptography.fernet import Fernet
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.security import get_current_user
