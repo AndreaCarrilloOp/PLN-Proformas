@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.db.base import Base
 from app.db.seed import seed_database
-from app.models.domain import LocalUser, Request, RequestItem, UnitMeasure
+from app.models.domain import LocalUser, Request, RequestItem, UnitMeasure, ProductService, LexicalVariant
 from app.services.nlp import NLPService
 from app.services.requests import RequestService
 from app.services.auth import hash_password
@@ -54,6 +54,11 @@ def test_units_extract(message,quantity,unit):
 def test_unit_persisted_separately_by_item(db):
     user=LocalUser(username="unidades",display_name="Test",password_hash="x")
     db.add(user);db.commit()
+    for name,term in [("Lapicero","lapiceros"),("Papel","papel")]:
+        product=ProductService(name=name,kind="PRODUCTO",active=True)
+        db.add(product);db.flush()
+        db.add(LexicalVariant(variant=term,normalized_value=name,product_service_id=product.id,requires_confirmation=False))
+    db.commit()
     req=RequestService(db).create("Necesito 3 cajas de lapiceros y 4 resmas de papel",user.id)
     items=db.scalars(select(RequestItem).where(RequestItem.request_id==req.id).order_by(RequestItem.id)).all()
     assert len(items)==2
