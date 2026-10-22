@@ -27,7 +27,11 @@ class RequestService:
         req = Request(original_text=text, owner_user_id=owner_user_id, status="PENDIENTE")
         self.db.add(req)
         self.db.flush()
-        extracted = NLPService(self.db).extract(text)
+        service = NLPService(self.db)
+        extracted = service.extract(text)
+        if service.is_non_commercial(text, extracted):
+            self.db.rollback()
+            raise ValueError("El texto no describe una solicitud comercial de bienes o servicios")
         for ext in extracted:
             product = self._resolve_product(ext.product_id, ext.product_name)
             brand = self._resolve_brand(ext.brand_id, ext.brand_name)
@@ -36,7 +40,7 @@ class RequestService:
                 product_service_id=product.id if product else None,
                 original_fragment=ext.fragment,
                 quantity=Decimal(ext.quantity) if ext.quantity is not None else None,
-                unit_measure_id=self.db.scalar(select(UnitMeasure.id).where(UnitMeasure.symbol == "unidad")),
+                unit_measure_id=self.db.scalar(select(UnitMeasure.id).where(UnitMeasure.symbol == (ext.unit_symbol or "unidad"))),
                 brand_id=brand.id if brand else None,
                 status="PENDIENTE",
             )
