@@ -206,7 +206,7 @@ class NLPService:
 
     def _unit(self, fragment: str) -> str:
         """Distingue la unidad comercial explícita de atributos técnicos como GB."""
-        pattern = rf"(?i)\\b(?:\\d+(?:[.,]\\d+)?|{NUMBER_PATTERN})\\s+(cajas?|resmas?|paquetes?|unidades?|servicios?)\\b"
+        pattern = rf"(?i)\b(?:\d+(?:[.,]\d+)?|{NUMBER_PATTERN})\s+(cajas?|resmas?|paquetes?|unidades?|servicios?)\b"
         match = re.search(pattern, fragment)
         if not match:
             return "unidad"
@@ -228,9 +228,9 @@ class NLPService:
             return False
         # El verbo regional «ocupo» no convierte una búsqueda de empleo en compra.
         non_purchase = (
-            r"\\b(?:ocupo|quiero|necesito|busco|solicito)\\s+"
-            r"(?:(?:el|un|una|la)\\s+)?(?:puesto|empleo|trabajo|vacaciones)\\b",
-            r"\\b(?:clima|pron[oó]stico\\s+del\\s+tiempo)\\b",
+            r"\b(?:ocupo|quiero|necesito|busco|solicito)\s+"
+            r"(?:(?:el|un|una|la)\s+)?(?:puesto|empleo|trabajo|vacaciones)\b",
+            r"\b(?:clima|pron[oó]stico\s+del\s+tiempo)\b",
         )
         return any(re.search(pat, text, flags=re.I) for pat in non_purchase)
 
