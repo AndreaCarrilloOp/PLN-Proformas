@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements-dev.txt
       - name: Run OE3 regression tests
-        run: python -m pytest -q tests/test_oe3_regresion.py tests/test_oe3_http.py tests/test_oe3_scenarios.py
+        run: python -m pytest -q tests/test_oe3_regresion.py tests/test_oe3_http.py tests/test_oe3_scenarios.py tests/test_oe3_closure.py
 
   postgres-migration:
     runs-on: ubuntu-latest
