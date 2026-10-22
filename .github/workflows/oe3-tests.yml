@@ -63,6 +63,7 @@ jobs:
     env:
       DATABASE_URL: 'sqlite+pysqlite:///:memory:'
       SESSION_SECRET: 'synthetic-ci-only'
+      PYTHONPATH: '.'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
