@@ -11,6 +11,7 @@ from app.models.domain import (
     Request,
     RequestItem,
     RequirementTemplate,
+    UnitMeasure,
     Transformation,
     ValidationQuestion,
     ValidationResponse,
@@ -22,8 +23,8 @@ class RequestService:
     def __init__(self, db: Session):
         self.db = db
 
-    def create(self, text: str) -> Request:
-        req = Request(original_text=text, status="PENDIENTE")
+    def create(self, text: str, owner_user_id: int) -> Request:
+        req = Request(original_text=text, owner_user_id=owner_user_id, status="PENDIENTE")
         self.db.add(req)
         self.db.flush()
         extracted = NLPService(self.db).extract(text)
@@ -35,6 +36,7 @@ class RequestService:
                 product_service_id=product.id if product else None,
                 original_fragment=ext.fragment,
                 quantity=Decimal(ext.quantity) if ext.quantity is not None else None,
+                unit_measure_id=self.db.scalar(select(UnitMeasure.id).where(UnitMeasure.symbol == "unidad")),
                 brand_id=brand.id if brand else None,
                 status="PENDIENTE",
             )
