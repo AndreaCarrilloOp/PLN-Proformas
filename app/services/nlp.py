@@ -48,6 +48,7 @@ class ExtractedItem:
     product_name: str | None = None
     product_id: int | None = None
     quantity: int | None = None
+    unit_symbol: str | None = None
     brand_name: str | None = None
     brand_id: int | None = None
     characteristics: list[ExtractedCharacteristic] = field(default_factory=list)
@@ -183,6 +184,7 @@ class NLPService:
             if cfg["requires_confirmation"]:
                 item.ambiguities.append(("producto", "¿La computadora requerida es portátil o de escritorio?"))
         item.quantity = self._quantity(fragment, mentions[0][0] if mentions else None)
+        item.unit_symbol = self._unit(fragment)
         self._brand(fragment, item)
         item.characteristics.extend(self._characteristics(fragment))
         return item
@@ -201,6 +203,36 @@ class NLPService:
             return int(float(raw.replace(",", ".")))
         except ValueError:
             return None
+
+    def _unit(self, fragment: str) -> str:
+        """Distingue la unidad comercial explícita de atributos técnicos como GB."""
+        pattern = rf"(?i)\\b(?:\\d+(?:[.,]\\d+)?|{NUMBER_PATTERN})\\s+(cajas?|resmas?|paquetes?|unidades?|servicios?)\\b"
+        match = re.search(pattern, fragment)
+        if not match:
+            return "unidad"
+        token = match.group(1).lower()
+        if token.startswith("caja"):
+            return "caja"
+        if token.startswith("resma"):
+            return "resma"
+        if token.startswith("paquete"):
+            return "paquete"
+        if token.startswith("servicio"):
+            return "servicio"
+        return "unidad"
+
+    @staticmethod
+    def is_non_commercial(text: str, items: list[ExtractedItem]) -> bool:
+        """Rechazo conservador: no reemplaza la aclaración de compras desconocidas."""
+        if any(item.product_id is not None for item in items):
+            return False
+        # El verbo regional «ocupo» no convierte una búsqueda de empleo en compra.
+        non_purchase = (
+            r"\\b(?:ocupo|quiero|necesito|busco|solicito)\\s+"
+            r"(?:(?:el|un|una|la)\\s+)?(?:puesto|empleo|trabajo|vacaciones)\\b",
+            r"\\b(?:clima|pron[oó]stico\\s+del\\s+tiempo)\\b",
+        )
+        return any(re.search(pat, text, flags=re.I) for pat in non_purchase)
 
     def _brand(self, fragment: str, item: ExtractedItem) -> None:
         low = fragment.lower()
