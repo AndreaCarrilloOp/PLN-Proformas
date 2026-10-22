@@ -64,3 +64,44 @@ def test_smtp_key_encryption_roundtrip():
     cipher = Fernet(key).encrypt(secret.encode())
     assert cipher.decode() != secret
     assert Fernet(key).decrypt(cipher).decode() == secret
+
+
+def test_multiattribute_answer_clears_both_questions():
+    from app.models.domain import (Characteristic, ProductService, RequirementTemplate,
+                                   TemplateField, RequestItem, ValidationQuestion, Category)
+    from app.services.requests import RequestService
+    engine = setup_db()
+    with Session(engine) as db:
+        category = Category(name="Portátiles")
+        product = ProductService(name="Laptop", category=category, kind="PRODUCTO")
+        ram = Characteristic(key="ram", name="RAM")
+        disk = Characteristic(key="almacenamiento", name="Almacenamiento")
+        db.add_all([product, ram, disk]); db.flush()
+        template = RequirementTemplate(product_service_id=product.id, name="Requisitos", active=True)
+        db.add(template); db.flush()
+        db.add_all([
+            TemplateField(template_id=template.id, characteristic_id=ram.id,
+                          question_text="¿RAM?", required=True),
+            TemplateField(template_id=template.id, characteristic_id=disk.id,
+                          question_text="¿Almacenamiento?", required=True)
+        ])
+        user = LocalUser(username="testmulti", display_name="Test", password_hash="x")
+        db.add(user); db.flush()
+        req = Request(original_text="1 laptop", owner_user_id=user.id)
+        db.add(req); db.flush()
+        item = RequestItem(request_id=req.id, product_service_id=product.id,
+                           original_fragment="1 laptop", quantity=1)
+        db.add(item); db.flush()
+        first = ValidationQuestion(request_item_id=item.id, field_key="ram",
+                                   question_text="¿RAM?", status="PENDIENTE")
+        second = ValidationQuestion(request_item_id=item.id, field_key="almacenamiento",
+                                    question_text="¿Almacenamiento?", status="PENDIENTE")
+        db.add_all([first, second]); db.flush()
+        req_id, first_id = req.id, first.id
+        db.commit()
+        result = RequestService(db).answer(req_id, first_id, "16 GB RAM y 512 GB SSD")
+        final_item = result.items[0]
+        values = {c.characteristic.key: c.normalized_value for c in final_item.characteristics}
+        assert values == {"ram": "16 GB", "almacenamiento": "512 GB SSD"}
+        assert all(q.status == "RESPONDIDA" for q in final_item.questions)
+        assert result.status == "COMPLETO"
