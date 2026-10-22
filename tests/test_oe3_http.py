@@ -98,7 +98,7 @@ def test_complete_flow_two_items_validation_provider_email_mock(clients, monkeyp
     assert create.status_code == 200, create.text
     data = create.json()
     assert len(data["articulos"]) == 2
-    assert [str(x["cantidad"]) for x in data["articulos"]] == ["2.00", "3.00"]
+    assert [float(x["cantidad"]) for x in data["articulos"]] == [2.0, 3.0]
     rid = data["id"]
     # Completar las plantillas dinámicas según el campo solicitado.
     for item in data["articulos"]:
