@@ -114,7 +114,11 @@ class RequestService:
         if not question or question.request_item_id not in {i.id for i in req.items}:
             raise ValueError("Pregunta no encontrada para esta solicitud")
         item = question.item
+        if question.status != "PENDIENTE":
+            raise ValueError("La pregunta ya fue respondida")
         normalized = answer.strip()
+        if not normalized:
+            raise ValueError("La respuesta no puede quedar vacía")
         self.db.add(ValidationResponse(question_id=question.id, response_text=answer, normalized_value=normalized))
         if question.field_key == "cantidad":
             try:
@@ -147,11 +151,57 @@ class RequestService:
             characteristic = self.db.scalar(select(Characteristic).where(Characteristic.key == question.field_key))
             if not characteristic:
                 raise ValueError("Campo de plantilla no reconocido")
-            current = self.db.scalar(select(ItemCharacteristic).where(ItemCharacteristic.request_item_id == item.id, ItemCharacteristic.characteristic_id == characteristic.id))
-            if current:
-                current.original_value = answer; current.normalized_value = normalized; current.source = "RESPUESTA_USUARIO"; current.confirmed = True
-            else:
-                self.db.add(ItemCharacteristic(request_item_id=item.id, characteristic_id=characteristic.id, original_value=answer, normalized_value=normalized, source="RESPUESTA_USUARIO", confirmed=True))
+            # Reconoce varios atributos dentro de una misma respuesta, pero solo
+            # completa campos que pertenecen a la plantilla del artículo.
+            template = self.db.scalar(select(RequirementTemplate).where(
+                RequirementTemplate.product_service_id == item.product_service_id,
+                RequirementTemplate.active.is_(True)))
+            allowed = {field.characteristic.key for field in template.fields} if template else set()
+            extracted = {
+                part.key: part for part in NLPService(self.db)._characteristics(normalized)
+                if part.key in allowed
+            }
+            if question.field_key not in extracted and extracted:
+                raise ValueError("La respuesta no contiene el atributo solicitado")
+            for key, part in extracted.items():
+                definition = self.db.scalar(select(Characteristic).where(Characteristic.key == key))
+                if not definition:
+                    continue
+                current = self.db.scalar(select(ItemCharacteristic).where(
+                    ItemCharacteristic.request_item_id == item.id,
+                    ItemCharacteristic.characteristic_id == definition.id))
+                if current is None:
+                    self.db.add(ItemCharacteristic(
+                        request_item_id=item.id, characteristic_id=definition.id,
+                        original_value=part.original, normalized_value=part.normalized,
+                        source="RESPUESTA_USUARIO", confirmed=True))
+                else:
+                    current.original_value = part.original
+                    current.normalized_value = part.normalized
+                    current.source = "RESPUESTA_USUARIO"
+                    current.confirmed = True
+                for pending in item.questions:
+                    if pending.field_key == key and pending.status == "PENDIENTE":
+                        pending.status = "RESPONDIDA"
+                        if pending.id != question.id:
+                            self.db.add(ValidationResponse(
+                                question_id=pending.id, response_text=answer,
+                                normalized_value=part.normalized))
+            if not extracted:
+                # Valores libres permanecen disponibles para revisión humana.
+                current = self.db.scalar(select(ItemCharacteristic).where(
+                    ItemCharacteristic.request_item_id == item.id,
+                    ItemCharacteristic.characteristic_id == characteristic.id))
+                if current is None:
+                    self.db.add(ItemCharacteristic(
+                        request_item_id=item.id, characteristic_id=characteristic.id,
+                        original_value=answer, normalized_value=normalized,
+                        source="RESPUESTA_USUARIO", confirmed=True))
+                else:
+                    current.original_value = answer
+                    current.normalized_value = normalized
+                    current.source = "RESPUESTA_USUARIO"
+                    current.confirmed = True
         question.status = "RESPONDIDA"
         self.db.flush()
         self._add_missing_questions(item)
