@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
-      DATABASE_URL: sqlite+pysqlite:///:memory:
+      DATABASE_URL: 'sqlite+pysqlite:///:memory:'
       SESSION_SECRET: local-ci-test-secret
     steps:
       - name: Checkout
