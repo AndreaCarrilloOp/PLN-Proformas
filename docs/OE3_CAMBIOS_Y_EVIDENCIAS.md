@@ -69,3 +69,11 @@ La suite aislada utiliza SQLite para comprobar lógica ORM básica; NO sustituye
 - Evidencia de 5 casos: https://github.com/AndreaCarrilloOp/PLN-Proformas/actions/runs/39736635421 — log: `5 passed in 1.79s`. Incluye SMTP falso con autorización previa y cuenta del propietario, sin enviar correos reales.
 - Estos resultados SOLO acreditan las regresiones incluidas en `tests/test_oe3_regresion.py` con SQLite, no los 12 escenarios completos ni migración PostgreSQL.
 - Pendientes: controles HTTP de extremo a extremo con dos sesiones; migración en PostgreSQL real de prueba; cuenta SMTP configurada desde interfaz; simulación completa de flujo por proveedor; caso negativo no comercial; evaluación de unidad de medida específica y de los escenarios metodológicos del Capítulo III.
+
+## Ejecución integrada verificada — 2026-10-22
+GitHub Actions https://github.com/AndreaCarrilloOp/PLN-Proformas/actions/runs/39737738563 (commit `6ea8678612f46a1a345b683b9f721c016cd66ab7`):
+- `oe3`: **8 passed, 1 warning** — regresión ORM/PLN, aislamiento mediante tres sesiones TestClient, respuestas multiatributo, catálogo por rol, SMTP falso y flujo de solicitud/proveedor/correo.
+- `postgres-migration`: **1 passed** — PostgreSQL 16 real en CI, migración `manual_oe3_20261022.sql`, presencia de columna de propietario, roles, tabla SMTP y prueba negativa de clave foránea. El error FK registrado es esperado.
+- **No** se aplicó migración a BD productiva o local persistente. Se ensayó en esquema temporal `oe3_audit` y fue eliminado.
+- La verificación de SMTP usó servidor falso: no hubo correos reales ni contraseñas reales.
+- Sigue pendiente documentar ejecuciones completas S01–S20 del diseño metodológico, además de la revisión visual de interfaz final y evidencia del despliegue local. El 100 % de los indicadores del OE5 no se desprende de estas nueve pruebas técnicas.
