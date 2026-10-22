@@ -233,6 +233,20 @@ class NLPService:
     def _characteristics(self, fragment: str) -> list[ExtractedCharacteristic]:
         out = []
         seen = set()
+        # Colores explícitos del artículo; nunca se transfieren al artículo siguiente.
+        color = re.search(r"(?i)\\b(blanc[oa]s?|negr[oa]s?|azul(?:es)?|roj[oa]s?|verd(?:e|es))\\b", fragment)
+        if color:
+            original_color = color.group(1).lower()
+            normalized_color = (
+                "blanco" if original_color.startswith("blanc") else
+                "negro" if original_color.startswith("negr") else
+                "azul" if original_color.startswith("azul") else
+                "rojo" if original_color.startswith("roj") else
+                "verde"
+            )
+            out.append(ExtractedCharacteristic("color", color.group(0),
+                                               normalized_color, "REGEX"))
+            seen.add("color")
         processor = re.search(r"(?i)\b(?:intel\s+core\s+)?i([3579])\b", fragment)
         if processor:
             normalized = f"Intel Core i{processor.group(1)}"
