@@ -61,3 +61,11 @@ La suite aislada utiliza SQLite para comprobar lógica ORM básica; NO sustituye
 3. Inspeccionar los registros históricos cuyo `owner_user_id` sea nulo; asignar titulares únicamente con fuente administrativa verificada.
 4. Probar acceso cruzado como dos usuarios distintos. Registrar resultados; luego decidir el endurecimiento NOT NULL de `solicitud.owner_user_id`.
 5. Mantener la rama aislada hasta que todos los puntos anteriores sean satisfactorios.
+
+
+## Registro CI confirmado — 2026-10-22
+- Causa de bloqueo anterior: `DATABASE_URL: sqlite+pysqlite:///:memory:` sin comillas causaba error al analizar YAML; se corrigió con comillas.
+- Evidencia de 4 casos: https://github.com/AndreaCarrilloOp/PLN-Proformas/actions/runs/39736451566 — log: `4 passed in 1.48s`.
+- Evidencia de 5 casos: https://github.com/AndreaCarrilloOp/PLN-Proformas/actions/runs/39736635421 — log: `5 passed in 1.79s`. Incluye SMTP falso con autorización previa y cuenta del propietario, sin enviar correos reales.
+- Estos resultados SOLO acreditan las regresiones incluidas en `tests/test_oe3_regresion.py` con SQLite, no los 12 escenarios completos ni migración PostgreSQL.
+- Pendientes: controles HTTP de extremo a extremo con dos sesiones; migración en PostgreSQL real de prueba; cuenta SMTP configurada desde interfaz; simulación completa de flujo por proveedor; caso negativo no comercial; evaluación de unidad de medida específica y de los escenarios metodológicos del Capítulo III.
