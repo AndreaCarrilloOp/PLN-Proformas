@@ -48,6 +48,7 @@ class ExtractedItem:
     product_name: str | None = None
     product_id: int | None = None
     quantity: int | None = None
+    unit_symbol: str | None = None
     brand_name: str | None = None
     brand_id: int | None = None
     characteristics: list[ExtractedCharacteristic] = field(default_factory=list)
@@ -123,7 +124,25 @@ class NLPService:
             if filtered and m[0] < filtered[-1][1]:
                 continue
             filtered.append(m)
-        return filtered
+        # Una expresión es-CR como «compus portátiles» es un solo producto,
+        # no dos artículos. La compatibilidad sigue dependiendo del catálogo.
+        merged = []
+        j = 0
+        while j < len(filtered):
+            current = filtered[j]
+            if j + 1 < len(filtered):
+                following = filtered[j + 1]
+                between = text[current[1]:following[0]]
+                if (current[2].lower() in {"compu", "compus", "computadora", "computadoras"}
+                    and following[2].lower() in {"portátil", "portátiles"}
+                    and not between.strip()):
+                    merged.append((current[0], following[1], text[current[0]:following[1]],
+                                   following[3]))
+                    j += 2
+                    continue
+            merged.append(current)
+            j += 1
+        return merged
 
     def _split_fragments(self, text: str, mentions) -> list[str]:
         if len(mentions) <= 1:
@@ -165,6 +184,7 @@ class NLPService:
             if cfg["requires_confirmation"]:
                 item.ambiguities.append(("producto", "¿La computadora requerida es portátil o de escritorio?"))
         item.quantity = self._quantity(fragment, mentions[0][0] if mentions else None)
+        item.unit_symbol = self._unit(fragment)
         self._brand(fragment, item)
         item.characteristics.extend(self._characteristics(fragment))
         return item
@@ -183,6 +203,36 @@ class NLPService:
             return int(float(raw.replace(",", ".")))
         except ValueError:
             return None
+
+    def _unit(self, fragment: str) -> str:
+        """Distingue la unidad comercial explícita de atributos técnicos como GB."""
+        pattern = rf"(?i)\b(?:\d+(?:[.,]\d+)?|{NUMBER_PATTERN})\s+(cajas?|resmas?|paquetes?|unidades?|servicios?)\b"
+        match = re.search(pattern, fragment)
+        if not match:
+            return "unidad"
+        token = match.group(1).lower()
+        if token.startswith("caja"):
+            return "caja"
+        if token.startswith("resma"):
+            return "resma"
+        if token.startswith("paquete"):
+            return "paquete"
+        if token.startswith("servicio"):
+            return "servicio"
+        return "unidad"
+
+    @staticmethod
+    def is_non_commercial(text: str, items: list[ExtractedItem]) -> bool:
+        """Rechazo conservador: no reemplaza la aclaración de compras desconocidas."""
+        if any(item.product_id is not None for item in items):
+            return False
+        # El verbo regional «ocupo» no convierte una búsqueda de empleo en compra.
+        non_purchase = (
+            r"\b(?:ocupo|quiero|necesito|busco|solicito)\s+"
+            r"(?:(?:el|un|una|la)\s+)?(?:puesto|empleo|trabajo|vacaciones)\b",
+            r"\b(?:clima|pron[oó]stico\s+del\s+tiempo)\b",
+        )
+        return any(re.search(pat, text, flags=re.I) for pat in non_purchase)
 
     def _brand(self, fragment: str, item: ExtractedItem) -> None:
         low = fragment.lower()
@@ -215,6 +265,20 @@ class NLPService:
     def _characteristics(self, fragment: str) -> list[ExtractedCharacteristic]:
         out = []
         seen = set()
+        # Colores explícitos del artículo; nunca se transfieren al artículo siguiente.
+        color = re.search(r"(?i)\b(blanc[oa]s?|negr[oa]s?|azul(?:es)?|roj[oa]s?|verd(?:e|es))\b", fragment)
+        if color:
+            original_color = color.group(1).lower()
+            normalized_color = (
+                "blanco" if original_color.startswith("blanc") else
+                "negro" if original_color.startswith("negr") else
+                "azul" if original_color.startswith("azul") else
+                "rojo" if original_color.startswith("roj") else
+                "verde"
+            )
+            out.append(ExtractedCharacteristic("color", color.group(0),
+                                               normalized_color, "REGEX"))
+            seen.add("color")
         processor = re.search(r"(?i)\b(?:intel\s+core\s+)?i([3579])\b", fragment)
         if processor:
             normalized = f"Intel Core i{processor.group(1)}"

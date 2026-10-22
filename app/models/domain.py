@@ -16,7 +16,20 @@ class LocalUser(Base):
     display_name: Mapped[str] = mapped_column(String(120))
     password_hash: Mapped[str] = mapped_column(String(255))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    role: Mapped[str] = mapped_column(String(24), nullable=False, default="USUARIO_FINAL", server_default="USUARIO_FINAL")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserSmtpAccount(Base):
+    """Configuración por usuario; la clave se almacena cifrada con Fernet."""
+    __tablename__ = "smtp_cuenta_usuario"
+    user_id: Mapped[int] = mapped_column(ForeignKey("usuario_local.id"), primary_key=True)
+    host: Mapped[str] = mapped_column(String(200))
+    port: Mapped[int] = mapped_column(default=587)
+    username: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    from_email: Mapped[str] = mapped_column(String(200))
+    password_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    use_tls: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class Category(Base):
@@ -115,6 +128,7 @@ class Request(Base):
     __tablename__ = "solicitud"
     id: Mapped[int] = mapped_column(primary_key=True)
     original_text: Mapped[str] = mapped_column(Text)
+    owner_user_id: Mapped[int | None] = mapped_column(ForeignKey("usuario_local.id"), index=True, nullable=True)
     status: Mapped[str] = mapped_column(String(40), default="PENDIENTE")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     items: Mapped[list[RequestItem]] = relationship(back_populates="request", cascade="all, delete-orphan")
@@ -127,6 +141,8 @@ class RequestItem(Base):
     product_service_id: Mapped[int | None] = mapped_column(ForeignKey("producto_servicio.id"), nullable=True)
     original_fragment: Mapped[str] = mapped_column(Text)
     quantity: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    unit_measure_id: Mapped[int | None] = mapped_column(ForeignKey("unidad_medida.id"), nullable=True)
+    unit_measure: Mapped[UnitMeasure | None] = relationship()
     brand_id: Mapped[int | None] = mapped_column(ForeignKey("marca.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(40), default="PENDIENTE")
     request: Mapped[Request] = relationship(back_populates="items")
@@ -194,6 +210,7 @@ class ProviderRequest(Base):
     provider_id: Mapped[int] = mapped_column(ForeignKey("proveedor.id"), index=True)
     status: Mapped[str] = mapped_column(String(30), default="BORRADOR")
     provider: Mapped[Provider] = relationship()
+    request: Mapped[Request] = relationship()
     items: Mapped[list[ProviderRequestItem]] = relationship(back_populates="provider_request", cascade="all, delete-orphan")
 
 
@@ -215,6 +232,7 @@ class EmailSend(Base):
     status: Mapped[str] = mapped_column(String(30), default="BORRADOR")
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provider_request: Mapped[ProviderRequest] = relationship()
 
 
 class Quote(Base):

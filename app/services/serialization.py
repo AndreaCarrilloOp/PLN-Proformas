@@ -12,6 +12,7 @@ def request_to_dict(req: Request) -> dict:
                 "fragmento_original": item.original_fragment,
                 "producto": item.product_service.name if item.product_service else None,
                 "cantidad": item.quantity,
+                "unidad": item.unit_measure.symbol if item.unit_measure else None,
                 "marca": item.brand.name if item.brand else None,
                 "estado": item.status,
                 "caracteristicas": [

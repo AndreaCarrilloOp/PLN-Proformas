@@ -11,6 +11,7 @@ from app.models.domain import (
     Request,
     RequestItem,
     RequirementTemplate,
+    UnitMeasure,
     Transformation,
     ValidationQuestion,
     ValidationResponse,
@@ -22,11 +23,15 @@ class RequestService:
     def __init__(self, db: Session):
         self.db = db
 
-    def create(self, text: str) -> Request:
-        req = Request(original_text=text, status="PENDIENTE")
+    def create(self, text: str, owner_user_id: int) -> Request:
+        req = Request(original_text=text, owner_user_id=owner_user_id, status="PENDIENTE")
         self.db.add(req)
         self.db.flush()
-        extracted = NLPService(self.db).extract(text)
+        service = NLPService(self.db)
+        extracted = service.extract(text)
+        if service.is_non_commercial(text, extracted):
+            self.db.rollback()
+            raise ValueError("El texto no describe una solicitud comercial de bienes o servicios")
         for ext in extracted:
             product = self._resolve_product(ext.product_id, ext.product_name)
             brand = self._resolve_brand(ext.brand_id, ext.brand_name)
@@ -35,6 +40,7 @@ class RequestService:
                 product_service_id=product.id if product else None,
                 original_fragment=ext.fragment,
                 quantity=Decimal(ext.quantity) if ext.quantity is not None else None,
+                unit_measure_id=self.db.scalar(select(UnitMeasure.id).where(UnitMeasure.symbol == (ext.unit_symbol or "unidad"))),
                 brand_id=brand.id if brand else None,
                 status="PENDIENTE",
             )
@@ -112,7 +118,11 @@ class RequestService:
         if not question or question.request_item_id not in {i.id for i in req.items}:
             raise ValueError("Pregunta no encontrada para esta solicitud")
         item = question.item
+        if question.status != "PENDIENTE":
+            raise ValueError("La pregunta ya fue respondida")
         normalized = answer.strip()
+        if not normalized:
+            raise ValueError("La respuesta no puede quedar vacía")
         self.db.add(ValidationResponse(question_id=question.id, response_text=answer, normalized_value=normalized))
         if question.field_key == "cantidad":
             try:
@@ -145,11 +155,57 @@ class RequestService:
             characteristic = self.db.scalar(select(Characteristic).where(Characteristic.key == question.field_key))
             if not characteristic:
                 raise ValueError("Campo de plantilla no reconocido")
-            current = self.db.scalar(select(ItemCharacteristic).where(ItemCharacteristic.request_item_id == item.id, ItemCharacteristic.characteristic_id == characteristic.id))
-            if current:
-                current.original_value = answer; current.normalized_value = normalized; current.source = "RESPUESTA_USUARIO"; current.confirmed = True
-            else:
-                self.db.add(ItemCharacteristic(request_item_id=item.id, characteristic_id=characteristic.id, original_value=answer, normalized_value=normalized, source="RESPUESTA_USUARIO", confirmed=True))
+            # Reconoce varios atributos dentro de una misma respuesta, pero solo
+            # completa campos que pertenecen a la plantilla del artículo.
+            template = self.db.scalar(select(RequirementTemplate).where(
+                RequirementTemplate.product_service_id == item.product_service_id,
+                RequirementTemplate.active.is_(True)))
+            allowed = {field.characteristic.key for field in template.fields} if template else set()
+            extracted = {
+                part.key: part for part in NLPService(self.db)._characteristics(normalized)
+                if part.key in allowed
+            }
+            if question.field_key not in extracted and extracted:
+                raise ValueError("La respuesta no contiene el atributo solicitado")
+            for key, part in extracted.items():
+                definition = self.db.scalar(select(Characteristic).where(Characteristic.key == key))
+                if not definition:
+                    continue
+                current = self.db.scalar(select(ItemCharacteristic).where(
+                    ItemCharacteristic.request_item_id == item.id,
+                    ItemCharacteristic.characteristic_id == definition.id))
+                if current is None:
+                    self.db.add(ItemCharacteristic(
+                        request_item_id=item.id, characteristic_id=definition.id,
+                        original_value=part.original, normalized_value=part.normalized,
+                        source="RESPUESTA_USUARIO", confirmed=True))
+                else:
+                    current.original_value = part.original
+                    current.normalized_value = part.normalized
+                    current.source = "RESPUESTA_USUARIO"
+                    current.confirmed = True
+                for pending in item.questions:
+                    if pending.field_key == key and pending.status == "PENDIENTE":
+                        pending.status = "RESPONDIDA"
+                        if pending.id != question.id:
+                            self.db.add(ValidationResponse(
+                                question_id=pending.id, response_text=answer,
+                                normalized_value=part.normalized))
+            if not extracted:
+                # Valores libres permanecen disponibles para revisión humana.
+                current = self.db.scalar(select(ItemCharacteristic).where(
+                    ItemCharacteristic.request_item_id == item.id,
+                    ItemCharacteristic.characteristic_id == characteristic.id))
+                if current is None:
+                    self.db.add(ItemCharacteristic(
+                        request_item_id=item.id, characteristic_id=characteristic.id,
+                        original_value=answer, normalized_value=normalized,
+                        source="RESPUESTA_USUARIO", confirmed=True))
+                else:
+                    current.original_value = answer
+                    current.normalized_value = normalized
+                    current.source = "RESPUESTA_USUARIO"
+                    current.confirmed = True
         question.status = "RESPONDIDA"
         self.db.flush()
         self._add_missing_questions(item)

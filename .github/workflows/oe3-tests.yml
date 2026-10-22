@@ -1,0 +1,84 @@
+name: OE3 Regression Tests
+on:
+  push:
+    branches:
+      - feat/oe3-solicitudes
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+jobs:
+  oe3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      DATABASE_URL: 'sqlite+pysqlite:///:memory:'
+      SESSION_SECRET: local-ci-test-secret
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run OE3 regression tests
+        run: python -m pytest -q tests/test_oe3_regresion.py tests/test_oe3_http.py tests/test_oe3_scenarios.py tests/test_oe3_closure.py
+
+  postgres-migration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: oe3_test
+          POSTGRES_PASSWORD: oe3_test_only
+          POSTGRES_DB: oe3_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U oe3_test -d oe3_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 8
+    env:
+      DATABASE_URL: 'postgresql+psycopg://oe3_test:oe3_test_only@localhost:5432/oe3_test'
+      OE3_POSTGRES_TEST_URL: 'postgresql+psycopg://oe3_test:oe3_test_only@localhost:5432/oe3_test'
+      SESSION_SECRET: local-ci-test-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: PostgreSQL migration regression
+        run: python -m pytest -q tests/test_oe3_postgresql.py tests/test_oe3_persistence.py
+
+  evidence-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: 'sqlite+pysqlite:///:memory:'
+      SESSION_SECRET: 'synthetic-ci-only'
+      PYTHONPATH: '.'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies and browser
+        run: |
+          python -m pip install -r requirements-dev.txt playwright python-docx
+          python -m playwright install --with-deps chromium
+      - name: Capture real running application
+        run: python tests/oe3_visual_evidence.py
+      - name: Upload evidence files regardless of capture result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oe3-real-interface-evidence
+          path: evidence/oe3/
+          if-no-files-found: warn

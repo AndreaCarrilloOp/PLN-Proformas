@@ -21,6 +21,7 @@ def serialize_user(user: LocalUser) -> dict:
         "id": user.id,
         "username": user.username,
         "nombre": user.display_name,
+        "rol": user.role,
     }
 
 

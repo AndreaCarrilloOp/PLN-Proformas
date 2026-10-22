@@ -3,6 +3,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.api.security import require_admin
+from app.models.domain import LocalUser
 from app.models.domain import Brand, Category, Characteristic, LexicalVariant, ProductService, Provider, RequirementTemplate, UnitMeasure
 from app.services.import_service import CatalogImportService, SUPPORTED_TYPES
 
@@ -45,6 +47,7 @@ async def import_catalog(
     tipo: str = Query(),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    user: LocalUser = Depends(require_admin),
 ):
     if tipo not in SUPPORTED_TYPES:
         raise HTTPException(400, f"Tipo no soportado. Opciones: {', '.join(sorted(SUPPORTED_TYPES))}")

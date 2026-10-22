@@ -7,7 +7,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api.routes import auth, catalog, comparison, emails, health, providers, quotes, solicitudes
+from app.api.routes import auth, catalog, comparison, emails, health, providers, quotes, solicitudes, smtp_account
 from app.core.config import get_settings
 from app.db.init_db import init_database
 from app.db.session import SessionLocal
@@ -106,6 +106,7 @@ async def security_headers(request: Request, call_next):
 
 app.include_router(health.router)
 app.include_router(auth.router, prefix="/api")
+app.include_router(smtp_account.router, prefix="/api")
 app.include_router(solicitudes.router, prefix="/api")
 app.include_router(providers.router, prefix="/api")
 app.include_router(emails.router, prefix="/api")
