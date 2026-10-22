@@ -210,6 +210,7 @@ class ProviderRequest(Base):
     provider_id: Mapped[int] = mapped_column(ForeignKey("proveedor.id"), index=True)
     status: Mapped[str] = mapped_column(String(30), default="BORRADOR")
     provider: Mapped[Provider] = relationship()
+    request: Mapped[Request] = relationship()
     items: Mapped[list[ProviderRequestItem]] = relationship(back_populates="provider_request", cascade="all, delete-orphan")
 
 
@@ -231,6 +232,7 @@ class EmailSend(Base):
     status: Mapped[str] = mapped_column(String(30), default="BORRADOR")
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provider_request: Mapped[ProviderRequest] = relationship()
 
 
 class Quote(Base):
