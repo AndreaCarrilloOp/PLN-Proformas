@@ -1,0 +1,14 @@
+Estimado equipo de {{ proveedor.name }}:
+
+Por medio de la presente, solicitamos una proforma para los siguientes bienes o servicios:
+
+{% for item in articulos -%}
+• {{ item.cantidad }} × {{ item.producto }}{% if item.marca %} — Marca: {{ item.marca }}{% endif %}
+{% for c in item.caracteristicas %}  • {{ c }}
+{% endfor %}
+{% endfor %}
+Agradecemos indicar precio, disponibilidad y las características relevantes de la oferta.
+
+Quedamos atentos a su respuesta.
+
+Saludos cordiales.

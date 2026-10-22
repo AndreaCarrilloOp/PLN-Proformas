@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PLN Proformas: solicitudes de proformas asistidas por procesamiento de lenguaje natural.">
+  <title>PLN Proformas</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">Saltar al contenido principal</a>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Navegación principal">
+      <div class="sidebar-top">
+        <button class="brand" type="button" data-screen="request" aria-label="Ir a nueva solicitud">
+          <span class="brand-mark" aria-hidden="true">P</span>
+          <span class="brand-copy">
+            <strong>PLN Proformas</strong>
+            <small>Solicitudes de proformas</small>
+          </span>
+        </button>
+
+        <button class="new-request-btn" id="newRequestBtn" type="button">
+          <span aria-hidden="true">＋</span>
+          <span>Nueva solicitud</span>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Módulos del sistema">
+        <p class="nav-label">Proceso</p>
+        <button class="nav-item active" type="button" data-screen="request" aria-current="page">
+          <span class="nav-icon" aria-hidden="true">✦</span>
+          <span>Solicitud</span>
+        </button>
+        <button class="nav-item" type="button" data-screen="providers">
+          <span class="nav-icon" aria-hidden="true">↗</span>
+          <span>Correos</span>
+        </button>
+        <button class="nav-item" type="button" data-screen="quotes">
+          <span class="nav-icon" aria-hidden="true">▤</span>
+          <span>Proformas</span>
+        </button>
+
+        <p class="nav-label nav-label-spaced">Configuración</p>
+        <button class="nav-item" type="button" data-screen="catalog">
+          <span class="nav-icon" aria-hidden="true">⌘</span>
+          <span>Catálogo</span>
+        </button>
+      </nav>
+
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <button class="icon-btn mobile-only" id="sidebarToggle" type="button" aria-label="Abrir menú">☰</button>
+        <div class="topbar-title">
+          <span class="workspace-name" id="screenTitle">Nueva solicitud</span>
+        </div>
+        <div class="topbar-actions">
+          <span class="request-context" id="activeRequestContext">Sin solicitud activa</span>
+          <span class="session-user" id="sessionUserName" aria-label="Usuario actual"></span>
+          <button class="logout-btn" id="logoutBtn" type="button">Salir</button>
+        </div>
+      </header>
+
+      <main class="screen-host" id="mainContent" tabindex="-1">
+        <section class="screen-view active" id="screen-request" data-screen-view="request">
+          <div class="chat-screen">
+            <div class="chat-thread" id="conversation" aria-live="polite">
+              <article class="chat-message assistant-message">
+                <div class="chat-avatar" aria-hidden="true">P</div>
+                <div class="chat-bubble welcome-bubble">
+                  <strong>¿Qué necesita cotizar?</strong>
+                  <p>Cuénteme qué necesita y lo iremos completando en esta conversación.</p>
+                </div>
+              </article>
+            </div>
+
+            <div class="chat-composer-wrap">
+              <div class="chat-composer">
+                <textarea id="requestText" rows="1" data-autogrow aria-label="Mensaje de solicitud" placeholder="Escriba lo que necesita cotizar…"></textarea>
+                <div class="chat-composer-footer">
+                  <button id="analyzeBtn" class="send-btn compact-send" type="button" aria-label="Enviar y analizar solicitud">
+                    <span>Enviar</span>
+                    <span class="send-arrow" aria-hidden="true">↑</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen-view" id="screen-validation" data-screen-view="validation">
+          <div class="screen-inner">
+            <div class="page-heading">
+              <div>
+                <h1>Detalle de la solicitud</h1>
+              </div>
+              <span id="requestStatus" class="status-chip neutral">Sin solicitud</span>
+            </div>
+
+            <div id="items" class="result-stack empty-state large-empty">
+              <div class="empty-icon" aria-hidden="true">⌁</div>
+              <p>Cree una solicitud para ver su detalle.</p>
+            </div>
+
+            <div class="page-actions">
+              <button class="secondary-action" type="button" data-screen="request">Volver</button>
+              <button id="goToProvidersBtn" class="primary-action" type="button" disabled>Continuar</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen-view" id="screen-providers" data-screen-view="providers">
+          <div class="screen-inner wide-screen email-screen">
+            <div class="page-heading">
+              <div>
+                <h1>Correos a proveedores</h1>
+              </div>
+            </div>
+
+            <div class="stepper-shell" aria-label="Proceso de preparación y autorización del correo">
+              <div class="horizontal-stepper four-steps" id="emailStepper">
+                <button class="stepper-step active" type="button" data-email-step="1">
+                  <span class="step-number">1</span><span class="step-label">Preparar</span>
+                </button>
+                <span class="step-line"></span>
+                <button class="stepper-step" type="button" data-email-step="2" disabled>
+                  <span class="step-number">2</span><span class="step-label">Editar</span>
+                </button>
+                <span class="step-line"></span>
+                <button class="stepper-step" type="button" data-email-step="3" disabled>
+                  <span class="step-number">3</span><span class="step-label">Autorizar</span>
+                </button>
+                <span class="step-line"></span>
+                <button class="stepper-step" type="button" data-email-step="4" disabled>
+                  <span class="step-number">4</span><span class="step-label">Enviar</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="email-flow-stage active" id="email-step-1">
+              <div class="stage-card streamlined-stage">
+                <span class="stage-index">Paso 1 de 4</span>
+                <h2>Preparar correos</h2>
+                <div id="providerRequestSummary" class="context-card muted-context">No hay una solicitud completa seleccionada.</div>
+                <div class="stage-actions">
+                  <button id="providersBtn" class="primary-action" type="button" disabled>Preparar correos</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="email-flow-stage" id="email-step-2">
+              <div class="email-compose-layout">
+                <aside class="mail-list-panel">
+                  <div class="mail-list-heading">
+                    <div>
+                      <span class="stage-index">Paso 2 de 4</span>
+                      <h2>Correos preparados</h2>
+                    </div>
+                    <span id="emailDraftCount" class="mini-counter">0</span>
+                  </div>
+                  <div id="emailDraftList" class="mail-list"></div>
+                </aside>
+
+                <section class="mail-composer-panel" id="emailComposerPanel">
+                  <div class="empty-mail-composer">
+                    <div class="empty-icon" aria-hidden="true">✉</div>
+                    <h2>Seleccione un correo</h2>
+                  </div>
+                </section>
+              </div>
+              <div class="stage-actions split-actions email-stage-footer">
+                <button class="secondary-action" type="button" data-email-back="1">Atrás</button>
+                <button id="goToApprovalBtn" class="primary-action" type="button" disabled>Continuar</button>
+              </div>
+            </div>
+
+            <div class="email-flow-stage" id="email-step-3">
+              <div class="stage-card streamlined-stage">
+                <span class="stage-index">Paso 3 de 4</span>
+                <h2>Autorizar correos</h2>
+                <div id="emailApprovalSummary" class="approval-summary"></div>
+                <div id="emailApprovalList" class="approval-list"></div>
+                <div class="stage-actions split-actions">
+                  <button class="secondary-action" type="button" data-email-back="2">Atrás</button>
+                  <button id="goToSendBtn" class="primary-action" type="button" disabled>Continuar</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="email-flow-stage" id="email-step-4">
+              <div class="stage-card streamlined-stage">
+                <span class="stage-index">Paso 4 de 4</span>
+                <h2>Enviar correos</h2>
+                <div id="emailSendSummary" class="approval-summary"></div>
+                <div id="emailSendList" class="send-mail-list"></div>
+                <div class="stage-actions split-actions">
+                  <button class="secondary-action" type="button" data-email-back="3">Atrás</button>
+                  <button class="primary-action" type="button" data-screen="quotes">Continuar a proformas</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen-view" id="screen-quotes" data-screen-view="quotes">
+          <div class="screen-inner wide-screen">
+            <div class="page-heading">
+              <div>
+                <h1>Proformas</h1>
+              </div>
+            </div>
+
+            <div class="search-card">
+              <label for="quoteSearchInput">Solicitud</label>
+              <div class="search-row">
+                <input id="quoteSearchInput" type="search" placeholder="Ej.: 12, laptops Dell o compras@proveedor.cr" autocomplete="off">
+                <button id="quoteSearchBtn" class="primary-action" type="button">Buscar</button>
+              </div>
+                          </div>
+
+            <div id="quoteSearchResults" class="search-results empty-state compact-empty">
+              <p>Busque y seleccione una solicitud.</p>
+            </div>
+
+            <div class="selected-request-panel" id="selectedQuoteRequest">
+              <div>
+                                <h2>Ninguna solicitud seleccionada</h2>
+                <p>Busque una solicitud para continuar.</p>
+              </div>
+            </div>
+
+            <div class="quotes-grid">
+              <section class="workspace-card">
+                <div class="card-heading">
+                  <div>
+                                        <h2>Cargar PDF</h2>
+                  </div>
+                </div>
+                <div class="upload-stack">
+                  <label class="file-drop" for="pdfFile">
+                    <span class="file-drop-icon" aria-hidden="true">⇧</span>
+                    <span>
+                      <strong id="pdfFileLabel">Seleccionar PDF</strong>
+                      <small>PDF digital</small>
+                    </span>
+                    <input id="pdfFile" type="file" accept="application/pdf" multiple>
+                  </label>
+                  <select id="providerSelect" aria-label="Proveedor de la proforma">
+                    <option value="">Proveedor: detectar/seleccionar</option>
+                  </select>
+                  <button id="uploadPdfBtn" class="primary-action" type="button" disabled>Procesar PDF</button>
+                </div>
+                <div id="pdfUploadProgress" class="inline-feedback" aria-live="polite"></div>
+              </section>
+
+              <section class="workspace-card">
+                <div class="card-heading">
+                  <div>
+                                        <h2>Proformas cargadas</h2>
+                  </div>
+                </div>
+                <div id="quoteHistory" class="quote-history empty-state compact-empty">
+                  <p>No hay una solicitud seleccionada.</p>
+                </div>
+              </section>
+            </div>
+
+            <section class="workspace-card review-card">
+              <div class="card-heading">
+                <div>
+                                    <h2>Revisar extracción</h2>
+                </div>
+              </div>
+              <div id="quoteReview" class="result-stack empty-state compact-empty">
+                <p>Seleccione una proforma para revisarla.</p>
+              </div>
+            </section>
+
+            <section class="comparison-panel" aria-labelledby="comparisonTitle">
+              <div class="page-heading compact-heading">
+                <div>
+                                    <h2 id="comparisonTitle">Comparación</h2>
+                </div>
+                <button id="comparisonBtn" class="secondary-action comparison-refresh-manual" type="button" disabled tabindex="-1" aria-hidden="true">Actualizar</button>
+              </div>
+
+              <div id="comparisonRequestSummary" class="context-card muted-context">Seleccione una solicitud para consultar su comparación.</div>
+
+              <div class="table-card">
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Producto</th>
+                        <th>Proveedor</th>
+                        <th>Cantidad</th>
+                        <th>Precio unitario</th>
+                        <th>Precio total</th>
+                        <th>Características</th>
+                      </tr>
+                    </thead>
+                    <tbody id="comparisonBody">
+                      <tr><td colspan="6" class="table-empty">No hay proformas validadas todavía.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="screen-view" id="screen-catalog" data-screen-view="catalog">
+          <div class="screen-inner">
+            <div class="page-heading">
+              <div>
+                <h1>Catálogo</h1>
+              </div>
+            </div>
+
+            <div id="catalogSummary" class="metrics"></div>
+
+            <section class="workspace-card">
+              <div class="card-heading">
+                <div>
+                                    <h2>Importar datos</h2>
+                </div>
+              </div>
+              <div class="catalog-import">
+                <select id="importType" aria-label="Tipo de catálogo">
+                  <option value="categorias">Categorías</option>
+                  <option value="productos">Productos/servicios</option>
+                  <option value="variantes">Variantes léxicas</option>
+                  <option value="marcas">Marcas</option>
+                  <option value="caracteristicas">Características</option>
+                  <option value="unidades">Unidades</option>
+                  <option value="proveedores">Proveedores</option>
+                  <option value="proveedor_productos">Proveedor ↔ producto</option>
+                  <option value="producto_marcas">Producto ↔ marca</option>
+                  <option value="plantillas">Plantillas</option>
+                  <option value="plantilla_campos">Campos de plantilla</option>
+                </select>
+                <label class="compact-file" for="catalogFile">
+                  <span>Elegir CSV/XLSX</span>
+                  <input id="catalogFile" type="file" accept=".csv,.xlsx">
+                </label>
+                <button id="importCatalogBtn" class="primary-action" type="button">Importar</button>
+              </div>
+              <pre id="importResult" class="output small" aria-live="polite"></pre>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Inicio de sesión de PLN Proformas.">
+  <title>Iniciar sesión · PLN Proformas</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="auth-body">
+  <main class="auth-shell">
+    <section class="auth-card" aria-labelledby="loginTitle">
+      <div class="auth-brand" aria-hidden="true">P</div>
+      <div class="auth-heading">
+        <h1 id="loginTitle">PLN Proformas</h1>
+        <p>Inicie sesión para continuar.</p>
+      </div>
+
+      <form id="loginForm" class="auth-form" novalidate>
+        <label class="auth-field" for="username">
+          <span>Usuario</span>
+          <input id="username" name="username" autocomplete="username" required autofocus>
+        </label>
+
+        <label class="auth-field" for="password">
+          <span>Contraseña</span>
+          <div class="password-field">
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button id="togglePassword" class="password-toggle" type="button" aria-label="Mostrar contraseña">Mostrar</button>
+          </div>
+        </label>
+
+        <p id="loginError" class="auth-error" role="alert" aria-live="polite"></p>
+
+        <button id="loginBtn" class="auth-submit" type="submit">Entrar</button>
+      </form>
+    </section>
+  </main>
+  <script src="/static/login.js" defer></script>
+</body>
+</html>
