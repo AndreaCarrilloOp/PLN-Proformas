@@ -92,6 +92,10 @@ def seed_database(db: Session) -> None:
         characteristics[key] = _get_or_create(db, Characteristic, key=key, name=name)
 
     _get_or_create(db, UnitMeasure, name="Unidad", symbol="unidad")
+    _get_or_create(db, UnitMeasure, name="Caja", symbol="caja")
+    _get_or_create(db, UnitMeasure, name="Resma", symbol="resma")
+    _get_or_create(db, UnitMeasure, name="Paquete", symbol="paquete")
+    _get_or_create(db, UnitMeasure, name="Servicio", symbol="servicio")
     _get_or_create(db, UnitMeasure, name="Gigabyte", symbol="GB")
     _get_or_create(db, UnitMeasure, name="Terabyte", symbol="TB")
     _get_or_create(db, UnitMeasure, name="Pulgada", symbol="in")
