@@ -105,3 +105,61 @@ def test_multiattribute_answer_clears_both_questions():
         assert values == {"ram": "16 GB", "almacenamiento": "512 GB SSD"}
         assert all(q.status == "RESPONDIDA" for q in final_item.questions)
         assert result.status == "COMPLETO"
+
+
+def test_smtp_owner_account_and_authorization(monkeypatch):
+    from types import SimpleNamespace
+    from app.models.domain import (Provider, ProviderRequest, EmailSend)
+    import app.services.email_service as module
+
+    engine = setup_db()
+    with Session(engine) as db:
+        user = LocalUser(username="smtp_a", display_name="SMTP A", password_hash="test")
+        db.add(user); db.flush()
+        req = Request(original_text="2 laptops", owner_user_id=user.id, status="COMPLETO")
+        provider = Provider(name="Proveedor Prueba", email="proveedor@example.test")
+        db.add_all([req,provider]); db.flush()
+        provider_request = ProviderRequest(request_id=req.id, provider_id=provider.id)
+        db.add(provider_request); db.flush()
+        record = EmailSend(provider_request_id=provider_request.id,
+                           to_email="proveedor@example.test",
+                           subject="Prueba controlada", body_text="Solicitud de prueba",
+                           status="BORRADOR")
+        db.add(record); db.flush()
+        key = Fernet.generate_key()
+        db.add(UserSmtpAccount(
+            user_id=user.id, host="smtp.example.test", port=587,
+            username="cuenta-a@example.test", from_email="cuenta-a@example.test",
+            password_encrypted=Fernet(key).encrypt(b"solo-prueba").decode(),use_tls=True))
+        db.commit()
+        sender = EmailService(db)
+        sender.settings = SimpleNamespace(smtp_fernet_key=key.decode())
+        try:
+            sender.send(record.id)
+            assert False, "Se permitió enviar sin autorización"
+        except ValueError as exc:
+            assert "AUTORIZADO" in str(exc)
+
+        observed = {"send": 0, "login": None, "server": None}
+        class FakeSMTP:
+            def __init__(self, host, port, timeout):
+                observed["server"] = (host,port)
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def ehlo(self): pass
+            def starttls(self): pass
+            def login(self, username, password):
+                observed["login"] = (username, password)
+            def send_message(self, message):
+                observed["send"] += 1
+                assert message["From"] == "cuenta-a@example.test"
+        monkeypatch.setattr(module.smtplib,"SMTP", FakeSMTP)
+        db.get(EmailSend,record.id).status = "AUTORIZADO"
+        db.commit()
+        sender.send(record.id)
+        assert observed["send"] == 1
+        assert observed["server"] == ("smtp.example.test",587)
+        assert observed["login"] == ("cuenta-a@example.test","solo-prueba")
+        assert db.get(EmailSend,record.id).status == "ENVIADO"
