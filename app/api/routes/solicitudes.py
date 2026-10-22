@@ -3,6 +3,8 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.api.security import get_current_user, get_owned_request
+from app.models.domain import LocalUser
 from app.models.domain import EmailSend, Provider, ProviderRequest, Quote, Request
 from app.schemas.solicitudes import AnswerCreate, ConfirmationCreate, RequestCreate
 from app.services.requests import RequestService
@@ -12,14 +14,15 @@ router = APIRouter(prefix="/solicitudes", tags=["Solicitudes"])
 
 
 @router.post("")
-def create_request(payload: RequestCreate, db: Session = Depends(get_db)):
-    return request_to_dict(RequestService(db).create(payload.texto))
+def create_request(payload: RequestCreate, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
+    return request_to_dict(RequestService(db).create(payload.texto, user.id))
 
 
 @router.get("/buscar")
 def search_requests(
     q: str = Query(default="", max_length=200),
     db: Session = Depends(get_db),
+    user: LocalUser = Depends(get_current_user),
 ):
     """Busca solicitudes por ID, texto original o correo/asunto asociado.
 
@@ -27,7 +30,7 @@ def search_requests(
     Proformas PDF sin introducir lectura automática del buzón de correo.
     """
     term = q.strip()
-    stmt = select(Request).order_by(Request.created_at.desc()).limit(25)
+    stmt = select(Request).where(Request.owner_user_id == user.id).order_by(Request.created_at.desc()).limit(25)
 
     if term:
         pattern = f"%{term}%"
@@ -93,15 +96,14 @@ def search_requests(
 
 
 @router.get("/{request_id}")
-def get_request(request_id: int, db: Session = Depends(get_db)):
-    req = db.get(Request, request_id)
-    if not req:
-        raise HTTPException(404, "Solicitud no encontrada")
+def get_request(request_id: int, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
+    req = get_owned_request(db, request_id, user)
     return request_to_dict(req)
 
 
 @router.post("/{request_id}/respuestas")
-def answer_question(request_id: int, payload: AnswerCreate, db: Session = Depends(get_db)):
+def answer_question(request_id: int, payload: AnswerCreate, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
+    get_owned_request(db, request_id, user)
     try:
         req = RequestService(db).answer(request_id, payload.pregunta_id, payload.respuesta)
         return request_to_dict(req)
@@ -110,7 +112,8 @@ def answer_question(request_id: int, payload: AnswerCreate, db: Session = Depend
 
 
 @router.post("/{request_id}/confirmaciones")
-def confirm_interpretation(request_id: int, payload: ConfirmationCreate, db: Session = Depends(get_db)):
+def confirm_interpretation(request_id: int, payload: ConfirmationCreate, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
+    get_owned_request(db, request_id, user)
     try:
         req = RequestService(db).confirm(request_id, payload.transformacion_id, payload.confirmado, payload.valor_corregido)
         return request_to_dict(req)
