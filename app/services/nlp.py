@@ -123,7 +123,25 @@ class NLPService:
             if filtered and m[0] < filtered[-1][1]:
                 continue
             filtered.append(m)
-        return filtered
+        # Una expresión es-CR como «compus portátiles» es un solo producto,
+        # no dos artículos. La compatibilidad sigue dependiendo del catálogo.
+        merged = []
+        j = 0
+        while j < len(filtered):
+            current = filtered[j]
+            if j + 1 < len(filtered):
+                following = filtered[j + 1]
+                between = text[current[1]:following[0]]
+                if (current[2].lower() in {"compu", "compus", "computadora", "computadoras"}
+                    and following[2].lower() in {"portátil", "portátiles"}
+                    and not between.strip()):
+                    merged.append((current[0], following[1], text[current[0]:following[1]],
+                                   following[3]))
+                    j += 2
+                    continue
+            merged.append(current)
+            j += 1
+        return merged
 
     def _split_fragments(self, text: str, mentions) -> list[str]:
         if len(mentions) <= 1:
