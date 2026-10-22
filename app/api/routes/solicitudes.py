@@ -15,7 +15,10 @@ router = APIRouter(prefix="/solicitudes", tags=["Solicitudes"])
 
 @router.post("")
 def create_request(payload: RequestCreate, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
-    return request_to_dict(RequestService(db).create(payload.texto, user.id))
+    try:
+        return request_to_dict(RequestService(db).create(payload.texto, user.id))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @router.get("/buscar")
