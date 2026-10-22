@@ -234,7 +234,7 @@ class NLPService:
         out = []
         seen = set()
         # Colores explícitos del artículo; nunca se transfieren al artículo siguiente.
-        color = re.search(r"(?i)\\b(blanc[oa]s?|negr[oa]s?|azul(?:es)?|roj[oa]s?|verd(?:e|es))\\b", fragment)
+        color = re.search(r"(?i)\b(blanc[oa]s?|negr[oa]s?|azul(?:es)?|roj[oa]s?|verd(?:e|es))\b", fragment)
         if color:
             original_color = color.group(1).lower()
             normalized_color = (
