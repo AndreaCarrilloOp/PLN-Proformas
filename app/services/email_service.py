@@ -38,6 +38,7 @@ class EmailService:
         data = [{
             "producto": item.request_item.product_service.name if item.request_item.product_service else "Sin identificar",
             "cantidad": item.request_item.quantity,
+            "unidad": item.request_item.unit_measure.symbol if item.request_item.unit_measure else "unidad",
             "marca": item.request_item.brand.name if item.request_item.brand else None,
             "caracteristicas": [
                 f"{characteristic.characteristic.name}: {characteristic.normalized_value}"
