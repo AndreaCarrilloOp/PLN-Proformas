@@ -78,11 +78,13 @@ class ProviderService:
                     "articulo_id": row.request_item.id,
                     "producto": row.request_item.product_service.name if row.request_item.product_service else None,
                     "cantidad": row.request_item.quantity,
+                    "unidad": row.request_item.unit_measure.symbol if row.request_item.unit_measure else None,
                 } for row in pr.items],
                 "articulos_no_incluidos": [{
                     "articulo_id": item.id,
                     "producto": item.product_service.name if item.product_service else None,
                     "cantidad": item.quantity,
+                    "unidad": item.unit_measure.symbol if item.unit_measure else None,
                 } for item in omitted],
             })
         return rows
