@@ -3,6 +3,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.api.security import get_current_user, get_owned_request
+from app.models.domain import LocalUser
 from app.models.domain import Quote, Request
 from app.schemas.proformas import QuoteValidationInput
 from app.services.pdf_service import PDFService
@@ -34,9 +36,8 @@ def serialize_quote(q):
 
 
 @router.get("/solicitudes/{request_id}/proformas")
-def list_quotes(request_id: int, db: Session = Depends(get_db)):
-    if not db.get(Request, request_id):
-        raise HTTPException(404, "Solicitud no encontrada")
+def list_quotes(request_id: int, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
+    get_owned_request(db, request_id, user)
     rows = db.scalars(
         select(Quote).where(Quote.request_id == request_id).order_by(Quote.created_at.desc(), Quote.id.desc())
     ).all()
@@ -44,10 +45,11 @@ def list_quotes(request_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/proformas/{quote_id}")
-def get_quote(quote_id: int, db: Session = Depends(get_db)):
+def get_quote(quote_id: int, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
     q = db.get(Quote, quote_id)
     if not q:
         raise HTTPException(404, "Proforma no encontrada")
+    get_owned_request(db, q.request_id, user)
     return serialize_quote(q)
 
 
@@ -57,7 +59,9 @@ async def upload_quote(
     file: UploadFile = File(...),
     proveedor_id: int | None = Form(default=None),
     db: Session = Depends(get_db),
+    user: LocalUser = Depends(get_current_user),
 ):
+    get_owned_request(db, request_id, user)
     content = await file.read()
     try:
         q = PDFService(db).process_upload(request_id, proveedor_id, file.filename or "proforma.pdf", content)
@@ -70,7 +74,11 @@ async def upload_quote(
 
 
 @router.put("/proformas/{quote_id}/validar")
-def validate_quote(quote_id: int, payload: QuoteValidationInput, db: Session = Depends(get_db)):
+def validate_quote(quote_id: int, payload: QuoteValidationInput, db: Session = Depends(get_db), user: LocalUser = Depends(get_current_user)):
+    record = db.get(Quote, quote_id)
+    if not record:
+        raise HTTPException(404, "Proforma no encontrada")
+    get_owned_request(db, record.request_id, user)
     try:
         q = PDFService(db).validate(quote_id, payload.proveedor_id, [d.model_dump() for d in payload.detalles])
         return serialize_quote(q)
