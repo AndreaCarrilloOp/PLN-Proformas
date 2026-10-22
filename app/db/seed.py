@@ -41,6 +41,7 @@ def seed_database(db: Session) -> None:
                 display_name=settings.local_auth_display_name.strip() or username,
                 password_hash=hash_password(settings.local_auth_password),
                 active=True,
+                role="ADMIN_GLOBAL",  # solo usuario inicial explícito; nunca promover usuarios existentes
             ))
             db.flush()
 
