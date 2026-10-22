@@ -2,7 +2,7 @@ name: OE3 Regression Tests
 on:
   push:
     branches:
-      - revision-oe3-correcciones-20261022
+      - feat/oe3-solicitudes
   pull_request:
     branches:
       - main
