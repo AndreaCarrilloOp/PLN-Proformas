@@ -2,13 +2,14 @@ from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
 import smtplib
+from cryptography.fernet import Fernet, InvalidToken
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.models.domain import EmailSend, ProviderRequest
+from app.models.domain import EmailSend, ProviderRequest, UserSmtpAccount
 
 
 class EmailService:
@@ -89,29 +90,43 @@ class EmailService:
         self.db.refresh(record)
         return record
 
+    def _smtp_account(self, record: EmailSend) -> tuple[UserSmtpAccount, str | None]:
+        owner_id = record.provider_request.request.owner_user_id
+        account = self.db.get(UserSmtpAccount, owner_id) if owner_id else None
+        if account is None:
+            raise ValueError("No existe una cuenta SMTP personal autorizada")
+        if not self.settings.smtp_fernet_key:
+            raise ValueError("SMTP_FERNET_KEY no está configurada")
+        try:
+            password = Fernet(self.settings.smtp_fernet_key.encode()).decrypt(
+                account.password_encrypted.encode()
+            ).decode() if account.password_encrypted else None
+        except (ValueError, InvalidToken) as exc:
+            raise ValueError("No fue posible descifrar la configuración SMTP") from exc
+        return account, password
+
     def send(self, email_id: int) -> EmailSend:
         record = self.db.get(EmailSend, email_id)
         if not record:
             raise ValueError("Correo no encontrado")
         if record.status != "AUTORIZADO":
             raise ValueError("El correo debe estar AUTORIZADO antes de enviarse")
-        if not all([self.settings.smtp_host, self.settings.smtp_from]):
-            raise ValueError("SMTP no está configurado. Complete las variables SMTP en .env")
+        account, password = self._smtp_account(record)
 
         msg = EmailMessage()
-        msg["From"] = self.settings.smtp_from
+        msg["From"] = account.from_email
         msg["To"] = record.to_email
         msg["Subject"] = record.subject
         msg.set_content(record.body_text)
 
         try:
-            with smtplib.SMTP(self.settings.smtp_host, self.settings.smtp_port, timeout=20) as smtp:
+            with smtplib.SMTP(account.host, account.port, timeout=20) as smtp:
                 smtp.ehlo()
-                if self.settings.smtp_use_tls:
+                if account.use_tls:
                     smtp.starttls()
                     smtp.ehlo()
-                if self.settings.smtp_user and self.settings.smtp_password:
-                    smtp.login(self.settings.smtp_user, self.settings.smtp_password)
+                if account.username and password:
+                    smtp.login(account.username, password)
                 smtp.send_message(msg)
             record.status = "ENVIADO"
             record.sent_at = datetime.now(timezone.utc)
