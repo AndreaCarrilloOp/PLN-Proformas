@@ -35,3 +35,29 @@
 | E03-12 | casos funcionales previstos en Capítulo III | registrar esperado, obtenido, estado, versión y fecha | matriz firmada con capturas y logs |
 
 **Control**: NO describir estas pruebas como exitosas antes de ejecutarlas. El DOC-06 es la fuente literal de OE3 y Producto 3. Capturas de interfaz son evidencia de visualización, no sustituyen respuestas HTTP, registros de BD y pruebas.
+
+
+## Estado real de CI — 22 de octubre de 2026
+Se registraron tres ejecuciones fallidas de GitHub Actions:
+- https://github.com/AndreaCarrilloOp/PLN-Proformas/actions/runs/39734513653
+- https://github.com/AndreaCarrilloOp/PLN-Proformas/actions/runs/39734586056
+- https://github.com/AndreaCarrilloOp/PLN-Proformas/actions/runs/39735962870
+
+Las consultas a `actions/runs/{id}/jobs` mostraron **0 jobs**. No hay logs de `pytest`: no atribuir el fallo a tests funcionales. Revisar GitHub Actions → Actions permissions, disponibilidad de runners y validación de workflow. La rama NO está aprobada.
+
+### Ejecución reproducible en entorno de desarrollo (sin datos reales)
+```bash
+python -m venv .venv
+# Activar .venv para el SO correspondiente
+python -m pip install -r requirements-dev.txt
+python -m pytest -q tests/test_oe3_regresion.py
+```
+Guardar consola completa, versión Python, versiones de dependencias, SHA del commit y fecha.
+La suite aislada utiliza SQLite para comprobar lógica ORM básica; NO sustituye la migración PostgreSQL ni las pruebas HTTP, de correo SMTP o de permisos entre dos sesiones.
+
+### Migración PostgreSQL
+1. Respaldar la BD y utilizar copia local de pruebas; detener escrituras.
+2. Ejecutar `migrations/manual_oe3_20261022.sql` con cuenta autorizada.
+3. Inspeccionar los registros históricos cuyo `owner_user_id` sea nulo; asignar titulares únicamente con fuente administrativa verificada.
+4. Probar acceso cruzado como dos usuarios distintos. Registrar resultados; luego decidir el endurecimiento NOT NULL de `solicitud.owner_user_id`.
+5. Mantener la rama aislada hasta que todos los puntos anteriores sean satisfactorios.
