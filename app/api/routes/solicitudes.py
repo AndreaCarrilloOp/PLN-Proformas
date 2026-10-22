@@ -43,6 +43,7 @@ def search_requests(
             .join(Provider, Provider.id == ProviderRequest.provider_id)
             .outerjoin(EmailSend, EmailSend.provider_request_id == ProviderRequest.id)
             .where(
+                ProviderRequest.request_id.in_(select(Request.id).where(Request.owner_user_id == user.id)),
                 or_(
                     Provider.email.ilike(pattern),
                     EmailSend.to_email.ilike(pattern),
