@@ -12,6 +12,7 @@ from app.db.session import get_db
 from app.db.seed import seed_database
 from app.models.domain import LocalUser,Quote,Request
 from app.services.auth import hash_password
+import app.main as main_module
 from app.main import app,settings
 
 @pytest.fixture
@@ -26,6 +27,7 @@ def clients(monkeypatch):
     def override():
         with sf() as db: yield db
     app.dependency_overrides[get_db]=override
+    monkeypatch.setattr(main_module,"SessionLocal",sf)
     monkeypatch.setattr(settings,"auto_create_tables",False)
     with TestClient(app) as admin,TestClient(app) as user:
         for client,username in [(admin,"admin_oe4"),(user,"user_oe4")]:
