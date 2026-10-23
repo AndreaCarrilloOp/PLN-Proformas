@@ -35,6 +35,8 @@ class PDFService:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                 tmp.write(content); temp_path = tmp.name
             text = self._extract_text(temp_path)
+            if not text.strip():
+                raise ValueError("El PDF no contiene texto seleccionable; no se utiliza OCR")
             if provider_id is None and text:
                 provider_id = self._detect_provider(text)
             quote = Quote(request_id=request_id, provider_id=provider_id, original_filename=Path(filename).name, raw_text_excerpt=text[:5000] if text else None, status="PRELIMINAR")

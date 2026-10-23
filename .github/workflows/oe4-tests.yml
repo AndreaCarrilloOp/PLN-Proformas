@@ -1,0 +1,27 @@
+name: OE4 Catalog and PDF Tests
+on:
+  push:
+    branches:
+      - feat/oe4-catalogo-pdf
+  pull_request:
+    branches:
+      - feat/oe3-solicitudes
+  workflow_dispatch:
+jobs:
+  oe4:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      DATABASE_URL: 'sqlite+pysqlite:///:memory:'
+      SESSION_SECRET: 'oe4-ci-test-secret'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt reportlab
+      - name: OE4 HTTP and security tests
+        run: python -m pytest -q tests/test_oe4_http.py
+      - name: OE3 regression protection
+        run: python -m pytest -q tests/test_oe3_regresion.py tests/test_oe3_http.py tests/test_oe3_scenarios.py tests/test_oe3_closure.py

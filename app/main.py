@@ -7,7 +7,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api.routes import auth, catalog, comparison, emails, health, providers, quotes, solicitudes, smtp_account
+from app.api.routes import auth, catalog, catalog_admin, comparison, emails, health, providers, quotes, solicitudes, smtp_account
 from app.core.config import get_settings
 from app.db.init_db import init_database
 from app.db.session import SessionLocal
@@ -111,6 +111,7 @@ app.include_router(solicitudes.router, prefix="/api")
 app.include_router(providers.router, prefix="/api")
 app.include_router(emails.router, prefix="/api")
 app.include_router(catalog.router, prefix="/api")
+app.include_router(catalog_admin.router, prefix="/api")
 app.include_router(quotes.router, prefix="/api")
 app.include_router(comparison.router, prefix="/api")
 
