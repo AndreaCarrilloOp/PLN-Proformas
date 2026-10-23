@@ -170,6 +170,10 @@ def delete_admin_record(
         record.active = False
         _commit(db)
         return {"id": record_id, "eliminacion": "DESACTIVADO"}
+    if tipo == "categorias":
+        linked = db.scalar(select(ProductService.id).where(ProductService.category_id == record_id).limit(1))
+        if linked is not None:
+            raise HTTPException(409, "La categoría tiene productos asociados; reasígnelos antes de eliminarla")
     try:
         db.delete(record)
         db.commit()
